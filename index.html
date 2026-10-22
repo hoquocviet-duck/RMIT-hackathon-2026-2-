@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedTide Vault - Zero-Knowledge EHR with TideCloak</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Link file CSS riêng -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+
+    <!-- ================= LANDING / LOGIN SCREEN ================= -->
+    <div id="login-screen" class="min-h-screen flex flex-col justify-center items-center p-6">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl text-center">
+            <div class="inline-flex p-4 rounded-full bg-teal-500/10 text-teal-400 mb-6">
+                <i data-lucide="shield-check" class="w-12 h-12"></i>
+            </div>
+            <h1 class="text-3xl font-bold mb-2">MedTide Vault</h1>
+            <p class="text-slate-400 text-sm mb-6">
+                Zero-Knowledge Electronic Health Records powered by <span class="text-teal-400 font-semibold">TideCloak</span> Decentralized IAM.
+            </p>
+
+            <!-- Cấu hình TideCloak Server -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-left text-xs text-slate-400 mb-6 space-y-3">
+                <div class="flex items-center justify-between text-slate-200 font-medium">
+                    <span class="flex items-center gap-1.5"><i data-lucide="server" class="w-4 h-4 text-teal-400"></i> TideCloak Node</span>
+                    <span class="text-emerald-400 text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded">Connected</span>
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-500 mb-1">Server Endpoint</label>
+                    <input type="text" id="server-url" value="http://localhost:8080" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-300 font-mono text-[11px]" />
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-500 mb-1">Realm Name</label>
+                    <input type="text" id="realm-name" value="medtide-prod" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-300 font-mono text-[11px]" />
+                </div>
+            </div>
+
+            <button id="login-btn" class="w-full py-3.5 px-6 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 cursor-pointer">
+                <i data-lucide="lock" class="w-5 h-5"></i>
+                Authenticate with TideCloak SSO
+            </button>
+        </div>
+    </div>
+
+    <!-- ================= DASHBOARD SCREEN (Ẩn lúc đầu) ================= -->
+    <div id="dashboard-screen" class="hidden min-h-screen flex flex-col">
+        <!-- Top Navbar -->
+        <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-10">
+            <div class="max-w-6xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="shield-check" class="w-8 h-8 text-teal-400"></i>
+                    <div>
+                        <h1 class="font-bold text-lg leading-none">MedTide Vault</h1>
+                        <span id="realm-badge" class="text-xs text-teal-400 font-mono">TideCloak Realm: medtide-prod</span>
+                    </div>
+                </div>
+
+                <!-- Bộ chuyển Role nhanh RBAC -->
+                <div class="flex items-center gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                    <span class="text-xs text-slate-400 px-2">Active Role:</span>
+                    <button class="role-switch-btn px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition bg-teal-500 text-slate-950" data-role="patient">Patient</button>
+                    <button class="role-switch-btn px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition text-slate-400 hover:text-white" data-role="doctor">Doctor</button>
+                    <button class="role-switch-btn px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition text-slate-400 hover:text-white" data-role="auditor">Auditor</button>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button id="inspect-jwt-btn" class="text-xs text-teal-400 hover:underline flex items-center gap-1 border border-teal-500/30 bg-teal-500/10 px-3 py-2 rounded-lg cursor-pointer">
+                        <i data-lucide="key-round" class="w-4 h-4"></i> JWT Token
+                    </button>
+                    <button id="logout-btn" class="text-xs text-slate-400 hover:text-red-400 flex items-center gap-1.5 border border-slate-800 px-3 py-2 rounded-lg cursor-pointer">
+                        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 w-full flex-grow">
+            <!-- CỘT TRÁI (2/3): TÍNH NĂNG CHÍNH -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Trạng thái Key & Consent Banner -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-teal-400">
+                            <i data-lucide="key-round" class="w-4 h-4"></i>
+                            TideCloak Decentralized Key Status: ACTIVE
+                        </div>
+                        <p class="text-xs text-slate-400">
+                            Current JWT Role: <code id="jwt-role-text" class="text-white bg-slate-800 px-1.5 py-0.5 rounded">patient</code> | 
+                            Doctor Permission: <strong id="consent-status-text" class="text-emerald-400">GRANTED</strong>
+                        </p>
+                    </div>
+
+                    <!-- Nút Cấp/Thu hồi quyền (Chỉ Patient thấy) -->
+                    <div id="patient-consent-container">
+                        <button id="toggle-consent-btn" class="px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 cursor-pointer">
+                            <i data-lucide="eye-off" class="w-4 h-4"></i> Revoke Doctor Access
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Form Bác sĩ thêm bệnh án (Chỉ Doctor thấy khi được cấp quyền) -->
+                <div id="doctor-form-container" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <h2 class="text-base font-bold mb-4 flex items-center gap-2 text-teal-300">
+                        <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                        Create Encrypted Medical Record (Patient: Nguyen Van A)
+                    </h2>
+                    <div id="doctor-locked-msg" class="hidden bg-rose-950/40 border border-rose-800/60 rounded-xl p-4 text-rose-300 text-sm flex items-center gap-3 mb-4">
+                        <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0 text-rose-400"></i>
+                        Patient PAT-8821 has revoked your TideCloak decryption & write permissions.
+                    </div>
+                    <form id="medical-form" class="space-y-4">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Clinical Diagnosis</label>
+                            <input type="text" id="input-diagnosis" required placeholder="e.g., Acute Bronchitis - SpO2 98%" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-teal-500 text-white" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Prescription & Treatment Plan</label>
+                            <input type="text" id="input-prescription" required placeholder="e.g., Amoxicillin 500mg, rest for 3 days" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-teal-500 text-white" />
+                        </div>
+                        <button type="submit" class="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer">
+                            Sign & Encrypt with TideCloak
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Danh sách bệnh án -->
+                <div class="space-y-4">
+                    <h2 class="text-base font-bold flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-5 h-5 text-teal-400"></i>
+                        Patient Medical Records (PAT-8821)
+                    </h2>
+                    <div id="records-list" class="space-y-4">
+                        <!-- Dynamic Records rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỘT PHẢI (1/3): AUDIT LOG -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 h-fit space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold flex items-center gap-2">
+                        <i data-lucide="activity" class="w-4 h-4 text-teal-400"></i>
+                        TideCloak IAM Audit Log
+                    </h2>
+                    <span class="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Live</span>
+                </div>
+                <p class="text-xs text-slate-400">
+                    Every key request, role switch, and consent change is cryptographically logged.
+                </p>
+                <div id="audit-logs-container" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                    <!-- Dynamic Logs rendered by JS -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Xem JWT Token -->
+    <div id="jwt-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-sm flex items-center gap-2 text-teal-400">
+                    <i data-lucide="key-round" class="w-4 h-4"></i> TideCloak Decentralized JWT Token
+                </h3>
+                <button id="close-jwt-modal" class="text-slate-400 hover:text-white cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <pre id="jwt-content" class="bg-slate-950 border border-slate-800 p-4 rounded-xl text-xs font-mono text-teal-300 overflow-x-auto max-h-80"></pre>
+            <p class="text-[11px] text-slate-500">Signed with ECDSA secp256k1 via TideCloak Distributed Key Generation (DKG).</p>
+        </div>
+    </div>
+
+    <!-- Link file JS riêng -->
+    <script src="script.js"></script>
+    <script>
+        // Khởi tạo lại icon lucide sau khi load DOM
+        lucide.createIcons();
+    </script>
+</body>
+</html>

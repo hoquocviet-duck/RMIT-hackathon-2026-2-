@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  tidecloak-server:
+    image: tideorg/tidecloak-dev:latest
+    container_name: medtide-auth-server
+    ports:
+      - "8080:8080"
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=password
+    networks:
+      - medtide-net
+
+networks:
+  medtide-net:
+    driver: bridge
